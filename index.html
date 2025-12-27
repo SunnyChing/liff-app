@@ -134,70 +134,64 @@
 </div>
 
 <script>
-  // 【注意】請填入您的  ID
-  const MY_LIFF_ID = '2008555385-honVqqwb'; 
+  // 【請務必修改】填入您正確的 LIFF ID (例如: 1657xxxxxx-AbCdEfGh)
+  const MY_LIFF_ID = '2008555385-0D1eLEbY'; 
 
   let currentUser = { name:'', phone:'', courses:0, tickets:0 };
   let selectedPlan = ''; 
   let finalDuration = 0;
   let useTicket = false;
   let selectedTime = null;
-  let lineUserId = 'GUEST_WEB'; 
+  let lineUserId = 'GUEST_WEB'; // 預設值，若 LIFF 未登入則使用此值
 
-// --- 修正後的 window.onload (防卡死版) ---
   window.onload = function() {
-    // 1. 設定日期輸入框
     try {
         const dp = document.getElementById('datePicker');
+        // 設定日期選擇器最小值為今天
         if(dp) dp.min = new Date().toISOString().split("T")[0];
     } catch(e){}
 
-    // 2. 【關鍵修正】啟動防卡死計時器 
-    // 如果 3 秒後還在載入，強制顯示介面，讓客人知道可以用
-    const statusDiv = document.getElementById('system-status');
-    setTimeout(() => {
-        if(statusDiv && statusDiv.innerText.includes('載入中')) {
-            console.log('LIFF 載入超時，強制啟用網頁模式');
-            statusDiv.innerText = '系統準備就緒 (請直接輸入電話)'; // 改成讓客人安心的字
-            statusDiv.style.color = '#246A53'; // 改成綠色
-        }
-    }, 2500); // 2.5秒後執行
-
-    // 3. 執行原本的 LIFF 初始化
     initializeLiff();
   };
 
   function initializeLiff() {
     const statusDiv = document.getElementById('system-status');
+    // 初始化 LIFF
     liff.init({ liffId: MY_LIFF_ID }).then(() => {
         if (liff.isInClient()) {
-          if (!liff.isLoggedIn()) liff.login();
-          else liff.getProfile().then(p => {
+          // 在 LINE App 內開啟
+          if (!liff.isLoggedIn()) {
+            liff.login(); // 若未登入則強制登入
+          } else {
+            // 已登入，取得 User ID
+            liff.getProfile().then(p => {
               lineUserId = p.userId;
-              if(statusDiv) statusDiv.innerText = `Hi, ${p.displayName}`;
-          }).catch(e => console.error(e));
+              if(statusDiv) statusDiv.innerText = `Hi, ${p.displayName} (LIFF 已連線)`;
+            }).catch(e => {
+              console.error(e);
+              if(statusDiv) statusDiv.innerText = '無法取得使用者資料';
+            });
+          }
         } else {
+          // 在外部瀏覽器開啟
           if(statusDiv) statusDiv.innerText = '網頁版訪客模式 (無需 LINE 登入)';
         }
     }).catch(e => {
         console.error(e);
-        if(statusDiv) statusDiv.innerText = '系統模式 (LIFF 未載入)';
+        if(statusDiv) statusDiv.innerText = 'LIFF 初始化失敗，請檢查 ID';
     });
   }
 
-  // --- 【關鍵修正】系統重置函數 (回到首頁) ---
+  // --- 系統重置函數 (回到首頁) ---
   function resetSystem() {
-    // 1. 清空變數
     currentUser = { name:'', phone:'', courses:0, tickets:0 };
     selectedTime = null;
     selectedPlan = '';
     finalDuration = 0;
     
-    // 2. 清空欄位
     document.getElementById('loginPhone').value = ''; 
     document.getElementById('datePicker').value = '';
     
-    // 3. 還原介面狀態
     document.getElementById('slotsContainer').innerHTML = '';
     document.getElementById('time-section').style.display = 'none';
     document.getElementById('confirmBtn').style.display = 'none';
@@ -207,11 +201,9 @@
     document.getElementById('useTicketCheck').checked = false;
     document.getElementById('useTicketCheck').disabled = true;
 
-    // 4. 切換回登入頁
     document.getElementById('view-main').classList.remove('active');
     document.getElementById('view-login').classList.add('active');
     
-    // 5. 捲動到頂部
     window.scrollTo(0,0);
   }
 
@@ -329,48 +321,40 @@
       });
     }).getAvailableSlots(date, finalDuration);
   }
-// --- 修正後的送出預約函式 ---
+
+  // --- 送出預約 (呼叫後端並觸發 LINE 訊息) ---
   function submitBooking() {
     if(!selectedTime) return alert('請選擇時間');
-    
-    // 再次確認資料
-    const uName = currentUser.name || document.getElementById('userName').value || '訪客';
-    const uPhone = currentUser.phone || document.getElementById('loginPhone').value;
-    
-    // 確保有電話
-    if(!uPhone) return alert('系統錯誤：無法讀取電話，請重新登入');
-
     const confirmMsg = `確定預約？\n\n日期：${document.getElementById('datePicker').value}\n時間：${selectedTime}\n方案：${selectedPlan === 'COURSE' ? '使用課程' : '單次'}\n時長：${finalDuration}分鐘`;
     if(!confirm(confirmMsg)) return;
     
     document.getElementById('loading-overlay').style.display = 'flex';
     
-    // 呼叫後端
-    google.script.run
-      .withSuccessHandler(res => {
-        document.getElementById('loading-overlay').style.display = 'none';
-        if(res.success) {
-          alert('✅ 預約成功！\n系統將自動返回首頁。');
-          resetSystem(); 
-        } else {
-          alert('❌ 失敗：' + res.error);
-        }
-      })
-      .withFailureHandler(err => {
-         // 這裡是抓出「卡在處理中」真正原因的關鍵
-         document.getElementById('loading-overlay').style.display = 'none';
-         alert('系統發生嚴重錯誤 (請截圖給管理員)：\n' + err.message);
-      })
-      .createBooking(
-        document.getElementById('datePicker').value, // 1. 日期
-        selectedTime,                                // 2. 時間
-        finalDuration,                               // 3. 長度
-        uName,                                       // 4. 姓名
-        uPhone,                                      // 5. 電話
-        lineUserId,                                  // 6. LineID (給後端發通知用)
-        selectedPlan,                                // 7. 方案類型
-        useTicket                                    // 8. 是否用券
-      );
+    // 【關鍵】這裡將 lineUserId 傳送給後端 GAS
+    google.script.run.withSuccessHandler(res => {
+      document.getElementById('loading-overlay').style.display = 'none';
+      if(res.success) {
+        alert('預約成功！\n(系統將發送 LINE 確認訊息)');
+        
+        // 可選：關閉 LIFF 視窗
+        // liff.closeWindow(); 
+        
+        // 成功後，重置系統回到登入頁
+        resetSystem(); 
+        
+      } else {
+        alert('失敗：' + res.error);
+      }
+    }).createBooking(
+      document.getElementById('datePicker').value,
+      selectedTime,
+      finalDuration, 
+      currentUser.name,
+      currentUser.phone,
+      lineUserId, // 傳送 User ID
+      selectedPlan, 
+      useTicket
+    );
   }
 </script>
 </body>
