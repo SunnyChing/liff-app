@@ -1,0 +1,91 @@
+!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度除錯模式</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <style>
+        body { padding: 20px; font-family: sans-serif; text-align: center; }
+        #status { font-size: 20px; font-weight: bold; margin-bottom: 20px; color: blue; }
+        .box { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 12px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h2>深度除錯模式</h2>
+    <div id="status">準備載入...</div>
+    <p>請點擊右下角的綠色 vConsole 按鈕查看詳細錯誤</p>
+
+    <script>
+        // --- 設定區 ---
+        const LIFF_ID = "2008555385-honVqqwb"; 
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzNhxg26Mik5MYZO8lU0VPj1WVD5ZPrr0R1HHzNI-io-mah08IibXfH020gZ3ABijOWxA/exec";
+
+        // 初始化 vConsole
+        var vConsole = new VConsole();
+        console.log('vConsole 初始化成功');
+
+        const statusDiv = document.getElementById('status');
+        
+        function updateStatus(text) {
+            statusDiv.innerText = text;
+            console.log('[進度] ' + text); // 這會顯示在綠色按鈕裡
+        }
+
+        // 開始執行
+        window.onload = function() {
+            updateStatus('1. 網頁載入完成');
+
+            if (!LIFF_ID || !GAS_URL) {
+                console.error('設定錯誤：LIFF_ID 或 GAS_URL 為空');
+                return;
+            }
+
+            updateStatus('2. 開始執行 liff.init');
+            
+            liff.init({ liffId: LIFF_ID })
+                .then(() => {
+                    updateStatus('3. LIFF Init 成功！');
+                    
+                    if (!liff.isLoggedIn()) {
+                        updateStatus('4. 未登入，跳轉登入中...');
+                        liff.login();
+                    } else {
+                        updateStatus('4. 已登入，準備發送');
+                        sendToGAS();
+                    }
+                })
+                .catch((err) => {
+                    // 這裡是最關鍵的地方！
+                    updateStatus('錯誤：Init 失敗');
+                    console.error('LIFF Init Error:', err);
+                    alert('LIFF 初始化失敗：' + err.code + '\n' + err.message);
+                });
+        };
+
+        async function sendToGAS() {
+            try {
+                const profile = await liff.getProfile();
+                updateStatus('5. 取得用戶：' + profile.displayName);
+                
+                console.log('準備 Fetch:', GAS_URL);
+                
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: profile.userId, message: "vConsole 測試" })
+                });
+
+                updateStatus('6. 發送完成 (no-cors)');
+                alert('測試成功！資料已送出');
+
+            } catch (err) {
+                console.error('Fetch Error:', err);
+                alert('發送失敗：' + err);
+            }
+        }
+    </script>
+</body>
+</html>
