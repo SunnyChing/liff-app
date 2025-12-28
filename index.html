@@ -374,7 +374,8 @@
   function toggleTicket() {
     if(selectedPlan !== 'COURSE') return;
     useTicket = document.getElementById('useTicketCheck').checked;
-    setDuration(useTicket ? 80 : 50);
+    base_duration =document.getElementById("ui-plan").innerText
+    setDuration(useTicket ? base_duration+30 : base_duration);
   }
 
   function setDuration(min) {
