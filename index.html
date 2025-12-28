@@ -67,8 +67,10 @@
   <div id="view-main" class="view">
     <div class="member-card">
       <h3>Hi, <span id="userName">--</span></h3>
-      <p>剩餘課程: <span id="userCourses">0</span> 堂 | 加時券: <span id="userTickets">0</span> 張</p>
+      <p>目前方案：<span id="ui-plan" style="font-weight:bold; color:#0056b3;">--</span> 方案</p>
+      <p>剩餘課程: <span id="ui-course-balance">0</span> 堂 | 加時券: <span id="ui-ticket-balance">0</span> 張</p>
     </div>
+    
     <div id="history-section">
       <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">📅 我的預約</h3>
       <div id="bookingList">
@@ -275,7 +277,6 @@
     });
   }
 // --- v7.1.0 新增功能 ---
-
   // 1. 載入預約紀錄
   function loadBookingHistory() {
     const listDiv = document.getElementById('bookingList');
@@ -326,12 +327,22 @@
       }
     });
   }
+// End--- v7.1.0 新增功能 ---
   // --- 介面輔助函式 ---
   function renderMain() {
     document.getElementById('userName').innerText = currentUser.name;
-    document.getElementById('userCourses').innerText = currentUser.courses;
-    document.getElementById('userTickets').innerText = currentUser.tickets;
-    
+    document.getElementById('ui-course-balance').innerText = currentUser.courses;
+    document.getElementById('ui-ticket-balance').innerText = currentUser.tickets;
+    // --- v7.2.0 新增邏輯：顯示方案 ---
+    var planText = "";
+    if (currentUser.plan == 80) {
+      planText = "🔥 高階課程 (80)";
+    } else if (currentUser.plan == 50) {
+      planText = "🌱 基礎課程 (50)";
+    } else {
+      planText = "未設定方案";
+    }
+    document.getElementById("ui-plan").innerText = planText;
     const hasCourse = currentUser.courses > 0;
     const hasTicket = currentUser.tickets > 0;
     
