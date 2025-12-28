@@ -67,7 +67,7 @@
   <div id="view-main" class="view">
     <div class="member-card">
       <h3>Hi, <span id="userName">--</span></h3>
-      <p>目前方案：<span id="ui-plan" style="font-weight:bold; color:#0056b3;">--</span> 方案</p>
+      <p>目前方案：<span id="ui-plan" style="font-weight:bold;">--</span> 方案</p>
       <p>剩餘課程: <span id="ui-course-balance">0</span> 堂 | 加時券: <span id="ui-ticket-balance">0</span> 張</p>
     </div>
     
@@ -336,9 +336,9 @@
     // --- v7.2.0 新增邏輯：顯示方案 ---
     var planText = "";
     if (currentUser.plan == 80) {
-      planText = "🔥 高階課程 (80)";
+      planText = "🔥 高階課程 (80分鐘)";
     } else if (currentUser.plan == 50) {
-      planText = "🌱 基礎課程 (50)";
+      planText = "🌱 基礎課程 (50分鐘)";
     } else {
       planText = "未設定方案";
     }
