@@ -29,6 +29,21 @@
     .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
     .time-slot { padding: 10px; border: 1px solid #ccc; border-radius: 5px; text-align: center; cursor: pointer; }
     .time-slot.selected { background: var(--accent); border-color: var(--accent); color: var(--primary); font-weight: bold; }
+  
+    /* 取消按鈕與列表樣式 */
+    .booking-item {
+      background: #fff; border-left: 5px solid var(--primary);
+      padding: 15px; margin-bottom: 10px; border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center;
+    }
+    .booking-info { font-size: 14px; }
+    .booking-time { font-weight: bold; color: var(--primary); font-size: 16px; margin-bottom: 5px; display: block;}
+    .cancel-btn {
+      background: #e74c3c; color: white; border: none; padding: 8px 12px;
+      border-radius: 5px; cursor: pointer; font-size: 13px;
+    }
+    .cancel-btn:hover { background: #c0392b; }
+    #history-section { margin-bottom: 30px; display: none; } /* 預設隱藏 */
   </style>
 </head>
 <body>
@@ -54,7 +69,11 @@
       <h3>Hi, <span id="userName">--</span></h3>
       <p>剩餘課程: <span id="userCourses">0</span> 堂 | 加時券: <span id="userTickets">0</span> 張</p>
     </div>
-
+    <div id="history-section">
+      <h3 style="border-bottom: 1px solid #ddd; padding-bottom: 10px; margin-bottom: 15px;">📅 我的預約</h3>
+      <div id="bookingList">
+        </div>
+    </div>
     <h3>選擇方案</h3>
     <div id="opt-course" class="option-card" onclick="selectOption('COURSE')">
       <b>💎 使用課程 (50分)</b>
@@ -185,8 +204,7 @@
     });
   }
 
-  // --- 業務邏輯 ---
-
+  // --- 業務邏輯v7.1.0 ---
   function handleLogin() {
     const phone = document.getElementById('loginPhone').value;
     if(!phone) return alert("請輸入電話");
@@ -195,14 +213,20 @@
       if(res.success) {
         currentUser = res.user;
         renderMain();
+        
+        // 【新增】登入成功後，立刻查詢預約紀錄
+        loadBookingHistory(); 
+        
       } else {
-        alert(res.message || "登入失敗");
-        // 為了演示，查不到也讓他進去
-        if(!res.success && res.user) { currentUser = res.user; renderMain(); }
+        alert(res.message || "Hi，新朋友");
+        if(!res.success && res.user) { 
+           currentUser = res.user; 
+           renderMain(); 
+           loadBookingHistory(); // 即使是新朋友也查一下(雖然應該是空的)
+        }
       }
     });
   }
-
   function fetchSlots() {
     const date = document.getElementById('datePicker').value;
     if(!date) return;
@@ -250,7 +274,58 @@
       }
     });
   }
+// --- v7.1.0 新增功能 ---
 
+  // 1. 載入預約紀錄
+  function loadBookingHistory() {
+    const listDiv = document.getElementById('bookingList');
+    const section = document.getElementById('history-section');
+    
+    listDiv.innerHTML = '<div style="text-align:center; color:#999;">載入中...</div>';
+    section.style.display = 'block';
+
+    sendRequest('getBookingHistory', { phone: currentUser.phone }).then(res => {
+      listDiv.innerHTML = ''; // 清空
+      
+      if (!res.bookings || res.bookings.length === 0) {
+        listDiv.innerHTML = '<div style="text-align:center; color:#999; padding:10px;">目前沒有未來的預約</div>';
+        return;
+      }
+
+      // 渲染列表
+      res.bookings.forEach(b => {
+        const item = document.createElement('div');
+        item.className = 'booking-item';
+        item.innerHTML = `
+          <div class="booking-info">
+            <span class="booking-time">${b.start}</span>
+            <span>${b.title}</span>
+          </div>
+          <button class="cancel-btn" onclick="triggerCancel('${b.id}', '${b.start}')">取消</button>
+        `;
+        listDiv.appendChild(item);
+      });
+    });
+  }
+
+  // 2. 觸發取消
+  function triggerCancel(eventId, timeStr) {
+    if(!confirm(`確定要取消 ${timeStr} 的預約嗎？\n(此操作無法復原)`)) return;
+
+    sendRequest('cancelBooking', {
+      eventId: eventId,
+      phone: currentUser.phone,
+      name: currentUser.name,
+      lineUserId: lineUserId
+    }).then(res => {
+      if(res.success) {
+        alert('✅ 取消成功！');
+        loadBookingHistory(); // 重新整理列表
+      } else {
+        alert('❌ 取消失敗：' + res.error);
+      }
+    });
+  }
   // --- 介面輔助函式 ---
   function renderMain() {
     document.getElementById('userName').innerText = currentUser.name;
