@@ -105,9 +105,29 @@
 
     <div id="opt-single" class="option-card" onclick="selectOption('SINGLE')">
       <b>💰 單次付費預約</b>
-      <div style="margin-top:5px;">
-        <button onclick="event.stopPropagation(); setDuration(50)">50分鐘</button>
-        <button onclick="event.stopPropagation(); setDuration(80)">80分鐘</button>
+      
+      <div style="margin-top:10px;">
+        <label style="font-size:14px; color:#555;">選擇方案：</label>
+        <select id="singlePlanSelect" onchange="updateSinglePlanLogic()" onclick="event.stopPropagation()" 
+                style="width:100%; padding:10px; margin-top:5px; border:1px solid var(--brown); border-radius:8px; font-size:16px; background:#fff;">
+          <option value="50_1">🌿 50分鐘 (單堂)</option>
+          <option value="50_2">🌿🌿 50分鐘 (連續兩堂)</option>
+          <option value="80_1">🔥 80分鐘 (單堂)</option>
+        </select>
+        
+        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc;">
+          <label id="singleTicketLabel">
+            <input type="checkbox" id="singleUseTicket" onchange="updateSinglePlanLogic()" onclick="event.stopPropagation()"> 
+            使用加時券 (+30分)
+          </label>
+          <div id="singleTicketHint" style="font-size:12px; color:var(--danger); display:none;">
+            ⚠️ 此方案不可使用加時券
+          </div>
+        </div>
+      </div>
+      
+      <div style="margin-top:8px; font-size:13px; color:var(--primary);">
+        總佔用時間：<span id="ui-single-calc">60</span> 分鐘 (含緩衝)
       </div>
     </div>
 
@@ -248,35 +268,163 @@
     document.getElementById('view-main').classList.add('active');
   }
 
-  // --- 選擇方案邏輯 (v7.2.0 修正) ---
+
+// --- 全域變數新增 ---
+  // 用來記錄單次預約的細節名稱，傳給後端用
+  let singlePlanDetailName = ""; 
+
+  // --- 1. 選擇大類別 (課程 vs 單次) ---
   function selectOption(type) {
     selectedPlan = type;
     document.querySelectorAll('.option-card').forEach(e => e.classList.remove('selected'));
     
     if(type === 'COURSE') {
        document.getElementById('opt-course').classList.add('selected');
-       toggleTicket(); // 立即觸發一次計算
+       // 課程邏輯維持原本的 toggleTicket
+       toggleCourseTicket(); 
     } else {
        document.getElementById('opt-single').classList.add('selected');
-       useTicket = false;
-       document.getElementById('time-section').style.display = 'none';
+       // 單次付費邏輯觸發 v7.3.1 新函式
+       updateSinglePlanLogic();
     }
   }
 
-  // --- 計算時間邏輯 (v7.2.0 核心修正) ---
-  function toggleTicket() {
+  // --- 2. 課程專用的加時邏輯 (原本的 toggleTicket 改名) ---
+  function toggleCourseTicket() {
     if(selectedPlan !== 'COURSE') return;
     
+    // 課程邏輯：讀取 checkbox 狀態
     useTicket = document.getElementById('useTicketCheck').checked;
-    
-    // 【修正點】從 currentUser 資料讀取，而不是解析 UI 文字
-    // 若沒有 plan 資料，預設為 50
     let baseDuration = parseInt(currentUser.plan) || 50; 
     
-    // 若使用加時卷，增加 30 分鐘
+    // 課程：純服務時間 (不特別加緩衝，維持原本邏輯，或依您需求修改)
+    // 假設課程方案仍維持：50分就是50分
     let totalDuration = useTicket ? (baseDuration + 30) : baseDuration;
-
+    
     setDuration(totalDuration);
+  }
+
+  // --- 3. [v7.3.1 新增] 單次付費的複雜邏輯 ---
+  function updateSinglePlanLogic() {
+    if(selectedPlan !== 'SINGLE') return;
+
+    const select = document.getElementById('singlePlanSelect');
+    const ticketCheck = document.getElementById('singleUseTicket');
+    const ticketLabel = document.getElementById('singleTicketLabel');
+    const ticketHint = document.getElementById('singleTicketHint');
+    const uiCalc = document.getElementById('ui-single-calc');
+
+    const val = select.value; // 50_1, 50_2, 80_1
+    let isTicket = ticketCheck.checked;
+    
+    let serviceTime = 0;
+    let bufferTime = 0;
+    let ticketTime = 0;
+    let planText = "";
+
+    // --- 規則判定 ---
+    if (val === '50_1') {
+      // 1. 50分鐘單堂
+      planText = "單次預約 (50分)";
+      ticketCheck.disabled = false; // 開放加時
+      ticketLabel.style.opacity = "1";
+      ticketHint.style.display = "none";
+      
+      if (isTicket) {
+        // 50 + 30(加時) + 10(緩衝) = 90
+        serviceTime = 50;
+        ticketTime = 30;
+        bufferTime = 10;
+      } else {
+        // 50 + 10(緩衝) = 60
+        serviceTime = 50;
+        bufferTime = 10;
+      }
+
+    } else if (val === '50_2') {
+      // 2. 50分鐘連續兩堂
+      planText = "單次預約 (連續兩堂 100分)";
+      
+      // 強制關閉加時並取消勾選
+      ticketCheck.checked = false;
+      ticketCheck.disabled = true;
+      ticketLabel.style.opacity = "0.5";
+      ticketHint.style.display = "block"; // 顯示警語
+      isTicket = false;
+
+      // 100 + 20(緩衝) = 120
+      serviceTime = 100;
+      bufferTime = 20;
+
+    } else if (val === '80_1') {
+      // 3. 80分鐘單堂
+      planText = "單次預約 (80分)";
+      ticketCheck.disabled = false;
+      ticketLabel.style.opacity = "1";
+      ticketHint.style.display = "none";
+
+      if (isTicket) {
+        // 80 + 30(加時) + 10(緩衝) = 120
+        serviceTime = 80;
+        ticketTime = 30;
+        bufferTime = 10;
+      } else {
+        // 80 + 10(緩衝) = 90
+        serviceTime = 80;
+        bufferTime = 10;
+      }
+    }
+
+    // 計算總佔用時間 (傳給後端去擋行事曆的時間)
+    let totalOccupied = serviceTime + ticketTime + bufferTime;
+    
+    // 更新全域變數
+    useTicket = isTicket;
+    singlePlanDetailName = planText + (isTicket ? " + 加時券" : "");
+    
+    // 更新 UI 顯示
+    uiCalc.innerText = totalOccupied;
+    
+    // 設定最終時間 (觸發顯示時間表)
+    setDuration(totalOccupied);
+  }
+
+  // --- 4. 送出預約 (修正 PlanName 傳遞) ---
+  function submitBooking() {
+    if(!selectedTime) return alert("請選擇時間");
+    
+    let planDesc = "";
+    // 判斷是「課程」還是「單次」來決定顯示名稱
+    if(selectedPlan === 'COURSE') {
+       planDesc = "課程扣抵";
+       if(useTicket) planDesc += " + 加時券";
+    } else {
+       // 單次使用剛剛算好的詳細名稱
+       planDesc = singlePlanDetailName;
+    }
+
+    let msg = `確認預約資訊：\n\n日期：${document.getElementById('datePicker').value}\n時間：${selectedTime}\n總時長：${finalDuration} 分鐘 (含緩衝)\n方案：${planDesc}`;
+    
+    if(!confirm(msg)) return;
+    
+    sendRequest('createBooking', {
+      date: document.getElementById('datePicker').value,
+      time: selectedTime,
+      duration: finalDuration, // 這裡傳的是「總佔用時間」，確保行事曆被佔滿
+      name: currentUser.name,
+      phone: currentUser.phone,
+      lineUserId: lineUserId,
+      plan: selectedPlan, 
+      customPlanName: planDesc, // 新增：直接傳送組好的方案名稱給後端
+      useTicket: useTicket
+    }).then(res => {
+      if(res.success) {
+        alert("✅ 預約成功！LINE 通知已發送");
+        resetSystem();
+      } else {
+        alert("❌ 預約失敗：" + (res.error || "未知錯誤"));
+      }
+    });
   }
 
   function setDuration(min) {
@@ -318,41 +466,6 @@
           }
           div.appendChild(el);
         });
-      }
-    });
-  }
-
-  // --- 送出預約 ---
-  function submitBooking() {
-    if(!selectedTime) return alert("請選擇時間");
-    
-    let msg = `確認預約資訊：\n\n日期：${document.getElementById('datePicker').value}\n時間：${selectedTime}\n長度：${finalDuration} 分鐘`;
-    if(selectedPlan === 'COURSE') {
-      msg += `\n方案：扣除 1 堂課`;
-      if(useTicket) msg += ` + 1 張加時卷`;
-    } else {
-      msg += `\n方案：單次付費`;
-    }
-    
-    if(!confirm(msg)) return;
-    
-    sendRequest('createBooking', {
-      date: document.getElementById('datePicker').value,
-      time: selectedTime,
-      duration: finalDuration,
-      name: currentUser.name,
-      phone: currentUser.phone,
-      lineUserId: lineUserId,
-      plan: selectedPlan, 
-      userPlanBase: currentUser.plan, // 傳送用戶的原始方案給後端參考
-      useTicket: useTicket
-    }).then(res => {
-      if(res.success) {
-        alert("✅ 預約成功！LINE 通知已發送");
-        // 成功後重新載入紀錄或重整頁面
-        resetSystem();
-      } else {
-        alert("❌ 預約失敗：" + (res.error || "未知錯誤"));
       }
     });
   }
