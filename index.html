@@ -53,12 +53,31 @@
 
 <div class="container">
   <div id="view-login" class="view active">
-    <div style="text-align:center; margin-top:60px;">
-      <h2 style="color:var(--primary);">VIP 會員登入</h2>
-      <p>請輸入手機號碼查詢資料</p>
-      <input type="tel" id="loginPhone" placeholder="09xxxxxxxx">
-      <button class="btn" onclick="handleLogin()">查詢 / 登入</button>
-      <div id="status-msg" style="margin-top:20px; color:#888; font-size:12px;">正在連線 LINE...</div>
+    <div style="text-align:center; margin-top:40px; padding: 0 20px;">
+      
+      <img src="./images/IMG_7577.PNG" 
+           alt="筋摩獵人 Logo" 
+           style="width: 150px; height: auto; display: block; margin: 0 auto 15px auto; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.15));">
+
+      <div id="status-msg" style="color: #A88462; font-size: 13px; font-weight: bold; margin-bottom: 20px; min-height: 20px;">
+        <span class="spinner" style="width:12px; height:12px; border-width:2px; display:inline-block; vertical-align:middle;"></span> 
+        正在連結 LINE...
+      </div>
+
+      <h2 style="color: var(--primary); margin: 0 0 10px 0; font-size: 24px;">VIP 會員登入</h2>
+
+      <div style="margin: 20px 0;">
+        <label for="loginPhone" style="display:block; color:#555; margin-bottom:8px; font-size:15px;">
+          請輸入手機號碼查詢資料
+        </label>
+        <input type="tel" id="loginPhone" placeholder="09xxxxxxxx" 
+               style="text-align: center; font-size: 18px; letter-spacing: 1px; padding: 15px; border: 2px solid #ddd; transition: 0.3s;">
+      </div>
+
+      <button class="btn" onclick="handleLogin()" style="font-size: 18px; font-weight: bold; box-shadow: 0 4px 10px rgba(36, 106, 83, 0.3);">
+        查詢 / 登入
+      </button>
+
     </div>
   </div>
 
@@ -123,7 +142,7 @@
       if (liff.isLoggedIn()) {
         liff.getProfile().then(p => {
           lineUserId = p.userId;
-          document.getElementById('status-msg').innerText = `已偵測 LINE 用戶: ${p.displayName}`;
+          document.getElementById('status-msg').innerText = `Hello ${p.displayName}`;
         });
       } else {
         liff.login();
