@@ -6,7 +6,7 @@
   <title>VIP 預約系統</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    /* --- CSS 樣式區 (v7.3.4 Merged) --- */
+    /* --- CSS 樣式區 (v7.3.7 Fix) --- */
     :root { 
       --primary: #246A53;   /* 獵人深綠 */
       --accent: #F0C239;    /* 品牌金黃 */
@@ -15,7 +15,6 @@
       --danger: #A73520;    /* 警示深紅 */
     }
 
-    /* 1. 首頁底色改為白色 */
     body { 
       margin: 0; padding: 0; 
       font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; 
@@ -23,7 +22,6 @@
       color: #333; 
     }
 
-    /* 2. .container 改為品牌黃色 */
     .container { 
       max-width: 600px; 
       margin: 0 auto; 
@@ -33,8 +31,9 @@
       box-shadow: 0 0 20px rgba(0,0,0,0.1);
     }
 
-    .view { display: none; padding: 20px; }
-    .view.active { display: block; }
+    /* 修正顯示邏輯：使用 !important 確保權重 */
+    .view { display: none !important; padding: 20px; }
+    .view.active { display: block !important; }
     
     .btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 16px; font-weight:bold; cursor: pointer; margin-top: 10px; transition: 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
     .btn:active { transform: scale(0.98); opacity: 0.9; }
@@ -48,21 +47,20 @@
     .member-card { background: linear-gradient(135deg, #246A53, #1a4f3d); color: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; border: 2px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
     
     .option-card { 
-      border: 2px solid #fff; /* 在黃底上用白邊框區隔 */
+      border: 2px solid #fff; 
       padding: 15px; 
       margin-bottom: 10px; 
       border-radius: 10px; 
       cursor: pointer; 
-      background: #fff; /* 卡片維持白色，閱讀性較佳 */
+      background: #fff; 
       transition: 0.3s;
       box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     }
     .option-card.selected { 
-      border: 3px solid var(--primary); /* 選中時用深綠色框 */
+      border: 3px solid var(--primary); 
       background: #fff; 
     }
 
-    /* 未選中時半透明且不可點擊內部 */
     .option-card:not(.selected) { opacity: 0.7; transform: scale(0.98); }
     .option-card:not(.selected) select, 
     .option-card:not(.selected) input { 
@@ -85,7 +83,6 @@
 
     .time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; }
     
-    /* 3. 時段顏色優化：白底綠字 vs 綠底白字 */
     .time-slot { 
       padding: 10px; 
       background: #fff;           
@@ -124,6 +121,7 @@
 </div>
 
 <div class="container">
+  
   <div id="view-login" class="view active" style="display:flex; flex-direction:column; justify-content:center; min-height:80vh;">
     <div style="background:#fff; padding:30px; border-radius:20px; box-shadow:0 10px 20px rgba(0,0,0,0.1);">
       <img src="./images/Logo.PNG" 
@@ -144,8 +142,7 @@
 
       <button class="btn" onclick="handleLogin()" style="font-size: 18px;">查詢 / 登入</button>
     </div>
-  </div>
-
+  </div> 
   <div id="view-main" class="view">
     <div class="member-card">
       <h3>Hi, <span id="userName">--</span></h3>
@@ -213,8 +210,8 @@
     
     <button id="confirmBtn" class="btn" style="display:none; margin-top:20px; box-shadow:0 0 15px rgba(0,0,0,0.2);" onclick="submitBooking()">確認預約</button>
     <button onclick="location.reload()" style="width:100%; border:none; background:none; color:#555; margin-top:30px; cursor:pointer;">登出 / 重整</button>
+  </div> 
   </div>
-</div>
 
 <script>
   // ==========================================
@@ -226,7 +223,6 @@
   let currentUser = {};
   let lineUserId = '';
   let selectedPlan = '';
-  // 核心邏輯：分離佔用時間(含緩衝)與顯示時間(純服務)
   let occupiedDuration = 0; 
   let displayDuration = 0;  
   let useTicket = false;
@@ -303,7 +299,6 @@
       cDiv.style.opacity = '1'; cDiv.style.pointerEvents = 'auto'; 
     }
     
-    // 初始化券的狀態
     const tCheckCourse = document.getElementById('courseUseTicket');
     const tCheckSingle = document.getElementById('singleUseTicket');
 
@@ -315,15 +310,23 @@
       tCheckSingle.disabled = false;
     }
 
-    document.getElementById('view-login').classList.remove('active');
-    document.getElementById('view-main').classList.add('active');
+    // --- 關鍵修改：強制確保切換時，舊的隱藏，新的顯示 ---
+    const loginView = document.getElementById('view-login');
+    const mainView = document.getElementById('view-main');
+    
+    // 1. 先全部隱藏並移除 active
+    loginView.style.display = 'none';
+    loginView.classList.remove('active');
+    
+    // 2. 再顯示主畫面
+    mainView.style.display = 'block';
+    mainView.classList.add('active');
   }
 
   function selectOption(type) {
     selectedPlan = type;
     document.querySelectorAll('.option-card').forEach(e => e.classList.remove('selected'));
     
-    // 4. 切換選項時，自動清除所有加時券勾選
     document.getElementById('courseUseTicket').checked = false;
     document.getElementById('singleUseTicket').checked = false;
     useTicket = false;
@@ -366,9 +369,7 @@
       serviceTime = baseDuration * 2; bufferTime = 20;
     }
 
-    // 後端計算用 (含緩衝)
     let totalOccupied = serviceTime + ticketTime + bufferTime;
-    // 前端顯示用 (純服務)
     let showDuration = serviceTime + ticketTime;
     
     useTicket = isTicket;
@@ -434,7 +435,6 @@
     const div = document.getElementById('slotsContainer');
     div.innerHTML = '<div style="grid-column:1/-1; text-align:center;">查詢中...</div>';
 
-    // 使用 occupiedDuration (含緩衝) 查詢時段，確保不重疊
     sendRequest('getAvailableSlots', { date: date, duration: occupiedDuration }).then(res => {
       div.innerHTML = '';
       if(res.status === 'FULL') {
@@ -458,7 +458,6 @@
     });
   }
 
-  // --- 5. 預約完成停留在原頁面不返回 ---
   function submitBooking() {
     if(!selectedTime) return alert("請選擇時間");
     
@@ -470,7 +469,7 @@
     sendRequest('createBooking', {
       date: document.getElementById('datePicker').value,
       time: selectedTime,
-      duration: occupiedDuration, // 後端儲存佔用時間
+      duration: occupiedDuration, 
       name: currentUser.name,
       phone: currentUser.phone,
       lineUserId: lineUserId,
@@ -480,11 +479,8 @@
     }).then(res => {
       if(res.success) {
         alert("✅ 預約成功！\n已更新下方預約列表。");
-        // 隱藏確認按鈕與時間區塊
         document.getElementById('time-section').style.display = 'none';
         document.getElementById('confirmBtn').style.display = 'none';
-        
-        // 刷新列表並捲動過去
         loadBookingHistory();
         document.getElementById('history-section').scrollIntoView({behavior: 'smooth'});
       } else {
